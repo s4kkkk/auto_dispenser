@@ -3,7 +3,7 @@
 
 /* Типы событий */
 typedef enum {
-  ENCODER_TURN_LEFT,
+  ENCODER_TURN_LEFT = 1,
   ENCODER_TURN_RIGHT,
   ENCODER_PUSHED,
   BUTTON_PUSHED,

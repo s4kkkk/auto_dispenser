@@ -7,7 +7,7 @@
 /*--------------------ОБЩИЕ НАСТРОЙКИ----------------------*/
 
 /* Максимальное число элементов в очереди событий. Максимально возможное - 255 */
-#define MAX_EVENT_QUEUE 10
+#define MAX_EVENT_QUEUE 4
 
 /* Максимальное число активных задач */
 #define MAX_TASKS 10
@@ -30,24 +30,28 @@ typedef struct {
 
 typedef struct event_queue event_queue_t;
 
-
-void event_queue_t_init(event_queue_t* queue);
+event_queue_t* event_queue_t_init(event_queue_t* queue);
 
 bool event_queue_t_is_empty(event_queue_t* queue);
 
-void event_queue_t_enqueue(event_queue_t* queue, event_t* event);
+uint8_t event_queue_t_enqueue(event_queue_t* queue, event_t* event);
 
 event_t* event_queue_t_dequeue(event_queue_t* queue);
 
 struct event_queue {
   
-  /* Очередь пустая? */
+  /* Очередь пуста? */
   bool (*is_empty)(event_queue_t* queue);
 
-  /* Внести событие в очередь */
-  event_t* (*enqueue)(event_queue_t* queue, event_t* event);
+  /* Внести событие в очередь. Возвращает:
+   * 0 - успешное выполнение
+   */
+  uint8_t (*enqueue)(event_queue_t* queue, event_t* event);
 
-  /* Вытащить событие из очереди */
+  /* Вытащить событие из очереди Возвращает:
+   * event_t* - успешное выполнение
+   * NULL - очередь пуста
+   */
   event_t* (*dequeue)(event_queue_t* queue);
   
   
@@ -57,6 +61,8 @@ struct event_queue {
   uint8_t _queue_start;
 
   uint8_t _queue_end;
+
+  uint8_t _current_size;
 };
 
 

@@ -1,6 +1,9 @@
 #include "gyver_drink.hpp"
-#include "kernel/kernel.h"
+#include "src/kernel/kernel.h"
+event_queue_t queude;
+
 void setup() {
+  event_queue_t_init(&queude);
 #if (DEBUG_UART == 1)
   Serial.begin(9600);
   DEBUG("start");
