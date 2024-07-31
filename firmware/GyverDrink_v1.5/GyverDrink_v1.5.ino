@@ -1,119 +1,325 @@
-/*
-  Скетч к проекту "Наливатор by AlexGyver"
-  - Страница проекта (схемы, описания): https://alexgyver.ru/GyverDrink/
-  - Исходники на GitHub: https://github.com/AlexGyver/GyverDrink/
-  Проблемы с загрузкой? Читай гайд для новичков: https://alexgyver.ru/arduino-first/
-  Нравится, как написан код? Поддержи автора! https://alexgyver.ru/support_alex/
-  Автор: AlexGyver, AlexGyver Technologies, 2019
-  https://www.youtube.com/c/alexgyvershow
-  https://github.com/AlexGyver
-  https://AlexGyver.ru/
-  alex@alexgyver.ru
-*/
+#include "gyver_drink.hpp"
 
-/*
-   Версия 1.1:
-   - Поправлена работа системы при выборе некорректного объёма
-   - Исправлены ошибки при наливании больших объёмов
-   - Исправлен баг с остановкой наливания при убирании другой рюмки
-
-   Версия 1.2:
-   - Исправлено ограничение выбора объёма
-   - Исправлены ошибки (обновите библиотеки из архива! servoSmooth v1.8, microLED v2.3)
-   - Добавлено хранение в памяти выбранного объёма
-
-   Версия 1.3:
-   - Исправлен баг со снятием рюмки в авто режиме (жука поймал Юрий Соколов)
-
-   Версия 1.4:
-   - Добавлена настройка уровня концевиков (для ИК датчиков)
-   - Исправлена ошибка с наливанием больших объёмов
-
-   Версия 1.5:
-   - Добавлена инверсия сервопривода (ОБНОВИТЕ БИБЛИОТЕКУ ИЗ АРХИВА)
-*/
-
-// ======== НАСТРОЙКИ ========
-#define NUM_SHOTS 4       // количество рюмок (оно же кол-во светодиодов и кнопок!)
-#define TIMEOUT_OFF 5     // таймаут на выключение (перестаёт дёргать привод), минут
-#define SWITCH_LEVEL 0    // кнопки 1 - высокий сигнал при замыкании, 0 - низкий
-#define INVERSE_SERVO 0   // инвертировать направление вращения серво
-
-// положение серво над центрами рюмок
-const byte shotPos[] = {25, 60, 95, 145, 60, 60};
-
-// время заполнения 50 мл
-const long time50ml = 5500;
-
-#define KEEP_POWER 1    // 1 - система поддержания питания ПБ, чтобы он не спал
-
-// отладка
-#define DEBUG_UART 1
-
-// =========== ПИНЫ ===========
-#define PUMP_POWER 3
-#define SERVO_POWER 4
-#define SERVO_PIN 5
-#define LED_PIN 6
-#define BTN_PIN 7
-#define ENC_SW 8
-#define ENC_DT 9
-#define ENC_CLK 10
-#define DISP_DIO 11
-#define DISP_CLK 12
-const byte SW_pins[] = {A0, A1, A2, A3, A4, A5};
-
-// =========== ЛИБЫ ===========
-#include <GyverTM1637.h>
-#include <ServoSmooth.h>
-#include <microLED.h>
-#include <EEPROM.h>
-#include "encUniversalMinim.h"
-#include "buttonMinim.h"
-#include "timer2Minim.h"
-
-// =========== ДАТА ===========
-#define COLOR_DEBTH 2   // цветовая глубина: 1, 2, 3 (в байтах)
-LEDdata leds[NUM_SHOTS];  // буфер ленты типа LEDdata (размер зависит от COLOR_DEBTH)
-microLED strip(leds, NUM_SHOTS, LED_PIN);  // объект лента
-
-GyverTM1637 disp(DISP_CLK, DISP_DIO);
-
-// пин clk, пин dt, пин sw, направление (0/1), тип (0/1)
-encMinim enc(ENC_CLK, ENC_DT, ENC_SW, 1, 1);
-
-ServoSmooth servo;
-
-buttonMinim btn(BTN_PIN);
-buttonMinim encBtn(ENC_SW);
-timerMinim LEDtimer(100);
-timerMinim FLOWdebounce(20);
-timerMinim FLOWtimer(2000);
-timerMinim WAITtimer(400);
-timerMinim TIMEOUTtimer(15000);   // таймаут дёргания приводом
-timerMinim POWEROFFtimer(TIMEOUT_OFF * 60000L);
-
-bool LEDchanged = false;
-bool pumping = false;
-int8_t curPumping = -1;
-
-enum {NO_GLASS, EMPTY, IN_PROCESS, READY} shotStates[NUM_SHOTS];
-enum {SEARCH, MOVING, WAIT, PUMPING} systemState;
-bool workMode = false;  // 0 manual, 1 auto
-int thisVolume = 50;
-bool systemON = false;
-bool timeoutState = false;
-bool volumeChanged = false;
-bool parking = false;
-
-// =========== МАКРО ===========
-#define servoON() digitalWrite(SERVO_POWER, 1)
-#define servoOFF() digitalWrite(SERVO_POWER, 0)
-#define pumpON() digitalWrite(PUMP_POWER, 1)
-#define pumpOFF() digitalWrite(PUMP_POWER, 0)
-
+void setup() {
 #if (DEBUG_UART == 1)
-#define DEBUG(x) Serial.println(x)
-#else
-#define DEBUG(x)
+  Serial.begin(9600);
+  DEBUG("start");
 #endif
+  // епром
+  if (EEPROM.read(1000) != 10) {
+    EEPROM.write(1000, 10);
+    EEPROM.put(0, thisVolume);
+  }
+  EEPROM.get(0, thisVolume);
+
+  // тыкаем ленту
+  strip.setBrightness(130);
+  strip.clear();
+  strip.show();
+  DEBUG("strip init");
+
+  // настройка пинов
+  pinMode(PUMP_POWER, 1);
+  pinMode(SERVO_POWER, 1);
+  for (byte i = 0; i < NUM_SHOTS; i++) {
+    if (SWITCH_LEVEL == 0) pinMode(SW_pins[i], INPUT_PULLUP);
+  }
+
+  // старт дисплея
+  disp.clear();
+  disp.brightness(7);
+  DEBUG("disp init");
+
+  // настройка серво
+  servoON();
+  servo.attach(SERVO_PIN, 600, 2400);
+  if (INVERSE_SERVO) servo.setDirection(REVERSE);
+   
+  servo.write(0);
+  delay(800);
+  servo.setTargetDeg(0);
+  servo.setSpeed(60);
+  servo.setAccel(0.3);
+  servoOFF();
+
+  serviceMode();    // калибровка
+  dispMode();       // выводим на дисплей стандартные значения
+  timeoutReset();   // сброс таймаута
+  TIMEOUTtimer.start();
+}
+
+// луп
+
+void loop() {
+  encTick();
+  btnTick();
+  flowTick();
+  LEDtick();
+  timeoutTick();
+}
+
+// различные функции
+
+void serviceMode() {
+  if (!digitalRead(BTN_PIN)) {
+    byte serviceText[] = {_S, _E, _r, _U, _i, _C, _E};
+    disp.runningString(serviceText, sizeof(serviceText), 150);
+    while (!digitalRead(BTN_PIN));  // ждём отпускания
+    delay(200);
+    servoON();
+    int servoPos = 0;
+    long pumpTime = 0;
+    timerMinim timer100(100);
+    disp.displayInt(0);
+    bool flag;
+    for (;;) {
+      servo.tick();
+      enc.tick();
+
+      if (timer100.isReady()) {   // период 100 мс
+        // работа помпы со счётчиком
+        if (!digitalRead(ENC_SW)) {
+          if (flag) pumpTime += 100;
+          else pumpTime = 0;
+          disp.displayInt(pumpTime);
+          pumpON();
+          flag = true;
+        } else {
+          pumpOFF();
+          flag = false;
+        }
+
+        // зажигаем светодиоды от кнопок
+        for (byte i = 0; i < NUM_SHOTS; i++) {
+          if (!digitalRead(SW_pins[i])) {
+            strip.setLED(i, mCOLOR(GREEN));
+          } else {
+            strip.setLED(i, mCOLOR(BLACK));
+          }
+          strip.show();
+        }
+      }
+
+      if (enc.isTurn()) {
+        // крутим серво от энкодера
+        pumpTime = 0;
+        if (enc.isLeft()) {
+          servoPos += 5;
+        }
+        if (enc.isRight()) {
+          servoPos -= 5;
+        }
+        servoPos = constrain(servoPos, 0, 180);
+        disp.displayInt(servoPos);
+        servo.setTargetDeg(servoPos);
+      }
+
+      if (btn.holded()) {
+        servo.setTargetDeg(0);
+        break;
+      }
+    }
+  }
+  disp.clear();
+  while (!servo.tick());
+  servoOFF();
+}
+
+// выводим объём и режим
+void dispMode() {
+  disp.displayInt(thisVolume);
+  if (workMode) disp.displayByte(0, _A);
+  else {
+    disp.displayByte(0, _P);
+    pumpOFF();
+  }
+}
+
+// наливайка, опрос кнопок
+void flowTick() {
+  if (FLOWdebounce.isReady()) {
+    for (byte i = 0; i < NUM_SHOTS; i++) {
+      bool swState = !digitalRead(SW_pins[i]) ^ SWITCH_LEVEL;
+      if (swState && shotStates[i] == NO_GLASS) {  // поставили пустую рюмку
+        timeoutReset();                                             // сброс таймаута
+        shotStates[i] = EMPTY;                                      // флаг на заправку
+        strip.setLED(i, mCOLOR(RED));                               // подсветили
+        LEDchanged = true;
+        DEBUG("set glass");
+        DEBUG(i);
+      }
+      if (!swState && shotStates[i] != NO_GLASS) {   // убрали пустую/полную рюмку
+        shotStates[i] = NO_GLASS;                                   // статус - нет рюмки
+        strip.setLED(i, mCOLOR(BLACK));                             // нигра
+        LEDchanged = true;
+        timeoutReset();                                             // сброс таймаута
+        if (i == curPumping) {
+          curPumping = -1; // снимаем выбор рюмки
+          systemState = WAIT;                                       // режим работы - ждать
+          WAITtimer.reset();
+          pumpOFF();                                                // помпу выкл
+        }
+        DEBUG("take glass");
+        DEBUG(i);
+      }
+    }
+
+    if (workMode) {         // авто
+      flowRoutnie();        // крутим отработку кнопок и поиск рюмок
+    } else {                // ручной
+      if (btn.clicked()) {  // клик!
+        systemON = true;    // система активирована
+        timeoutReset();     // таймаут сброшен
+      }
+      if (systemON) flowRoutnie();  // если активны - ищем рюмки и всё такое
+    }
+  }
+}
+
+// поиск и заливка
+void flowRoutnie() {
+  if (systemState == SEARCH) {                            // если поиск рюмки
+    bool noGlass = true;
+    for (byte i = 0; i < NUM_SHOTS; i++) {
+      if (shotStates[i] == EMPTY && i != curPumping) {    // поиск
+        noGlass = false;                                  // флаг что нашли хоть одну рюмку
+        parking = false;
+        curPumping = i;                                   // запоминаем выбор
+        systemState = MOVING;                             // режим - движение
+        shotStates[curPumping] = IN_PROCESS;              // стакан в режиме заполнения
+        servoON();                                        // вкл питание серво
+        servo.attach();
+        servo.setTargetDeg(shotPos[curPumping]);          // задаём цель
+        DEBUG("find glass");
+        DEBUG(curPumping);
+        break;
+      }
+    }
+    if (noGlass && !parking) {                            // если не нашли ни одной рюмки
+      servoON();
+      servo.setTargetDeg(0);                              // цель серво - 0
+      if (servo.tick()) {                                 // едем до упора
+        servoOFF();                                       // выключили серво
+        systemON = false;                                 // выключили систему
+        parking = true;
+        DEBUG("no glass");        
+      }
+    }
+  } else if (systemState == MOVING) {                     // движение к рюмке
+    if (servo.tick()) {                                   // если приехали
+      systemState = PUMPING;                              // режим - наливание
+      FLOWtimer.setInterval((long)thisVolume * time50ml / 50);  // перенастроили таймер
+      FLOWtimer.reset();                                  // сброс таймера
+      pumpON();                                           // НАЛИВАЙ!
+      strip.setLED(curPumping, mCOLOR(YELLOW));           // зажгли цвет
+      strip.show();
+      DEBUG("fill glass");
+      DEBUG(curPumping);
+    }
+
+  } else if (systemState == PUMPING) {                    // если качаем
+    if (FLOWtimer.isReady()) {                            // если налили (таймер)
+      pumpOFF();                                          // помпа выкл
+      shotStates[curPumping] = READY;                     // налитая рюмка, статус: готов
+      strip.setLED(curPumping, mCOLOR(LIME));             // подсветили
+      strip.show();
+      curPumping = -1;                                    // снимаем выбор рюмки
+      systemState = WAIT;                                 // режим работы - ждать
+      WAITtimer.reset();
+      DEBUG("wait");
+    }
+  } else if (systemState == WAIT) {
+    if (WAITtimer.isReady()) {                            // подождали после наливания
+      systemState = SEARCH;
+      timeoutReset();
+      DEBUG("search");
+    }
+  }
+}
+
+// отрисовка светодиодов по флагу (100мс)
+void LEDtick() {
+  if (LEDchanged && LEDtimer.isReady()) {
+    LEDchanged = false;
+    strip.show();
+  }
+}
+
+// сброс таймаута
+void timeoutReset() {
+  if (!timeoutState) disp.brightness(7);
+  timeoutState = true;
+  TIMEOUTtimer.reset();
+  TIMEOUTtimer.start();
+  DEBUG("timeout reset");
+}
+
+// сам таймаут
+void timeoutTick() {
+  if (systemState == SEARCH && timeoutState && TIMEOUTtimer.isReady()) {
+    DEBUG("timeout");
+    timeoutState = false;
+    disp.brightness(1);
+    POWEROFFtimer.reset();
+    jerkServo();
+    if (volumeChanged) {
+      volumeChanged = false;
+      EEPROM.put(0, thisVolume);
+    }
+  }
+
+  // дёргаем питание серво, это приводит к скачку тока и powerbank не отключает систему
+  if (!timeoutState && TIMEOUTtimer.isReady()) {
+    if (!POWEROFFtimer.isReady()) {   // пока не сработал таймер полного отключения
+      jerkServo();
+    } else {
+      disp.clear();
+    }
+  }
+}
+
+void jerkServo() {
+  if (KEEP_POWER) {
+    disp.brightness(7);
+    servoON();
+    servo.attach();
+    servo.write(random(0, 4));
+    delay(200);
+    servo.detach();
+    servoOFF();
+    disp.brightness(1);
+  }
+}
+
+// кнопки-крутилки
+
+void encTick() {
+  enc.tick();
+  if (enc.isTurn()) {
+    volumeChanged = true;
+    timeoutReset();
+    if (enc.isLeft()) {
+      thisVolume += 5;
+      thisVolume = constrain(thisVolume, 5, 1000);
+    }
+    if (enc.isRight()) {
+      thisVolume -= 5;
+      thisVolume = constrain(thisVolume, 5, 1000);
+    }
+    dispMode();
+  }
+}
+
+void btnTick() {
+  if (btn.holded()) {
+    timeoutReset();
+    workMode = !workMode;
+    dispMode();
+  }
+  if (encBtn.holded()) {
+    pumpON();
+    while (!digitalRead(ENC_SW));
+    timeoutReset();
+    pumpOFF();
+  }  
+}
