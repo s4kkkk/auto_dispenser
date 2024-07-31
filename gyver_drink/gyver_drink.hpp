@@ -16,11 +16,28 @@
    - Поправлена работа системы при выборе некорректного объёма
    - Исправлены ошибки при наливании больших объёмов
    - Исправлен баг с остановкой наливания при убирании другой рюмки
+
+   Версия 1.2:
+   - Исправлено ограничение выбора объёма
+   - Исправлены ошибки (обновите библиотеки из архива! servoSmooth v1.8, microLED v2.3)
+   - Добавлено хранение в памяти выбранного объёма
+
+   Версия 1.3:
+   - Исправлен баг со снятием рюмки в авто режиме (жука поймал Юрий Соколов)
+
+   Версия 1.4:
+   - Добавлена настройка уровня концевиков (для ИК датчиков)
+   - Исправлена ошибка с наливанием больших объёмов
+
+   Версия 1.5:
+   - Добавлена инверсия сервопривода (ОБНОВИТЕ БИБЛИОТЕКУ ИЗ АРХИВА)
 */
 
 // ======== НАСТРОЙКИ ========
 #define NUM_SHOTS 4       // количество рюмок (оно же кол-во светодиодов и кнопок!)
 #define TIMEOUT_OFF 5     // таймаут на выключение (перестаёт дёргать привод), минут
+#define SWITCH_LEVEL 0    // кнопки 1 - высокий сигнал при замыкании, 0 - низкий
+#define INVERSE_SERVO 0   // инвертировать направление вращения серво
 
 // положение серво над центрами рюмок
 const byte shotPos[] = {25, 60, 95, 145, 60, 60};
@@ -31,7 +48,7 @@ const long time50ml = 5500;
 #define KEEP_POWER 1    // 1 - система поддержания питания ПБ, чтобы он не спал
 
 // отладка
-#define DEBUG_UART 0
+#define DEBUG_UART 1
 
 // =========== ПИНЫ ===========
 #define PUMP_POWER 3
@@ -45,18 +62,17 @@ const long time50ml = 5500;
 #define DISP_DIO 11
 #define DISP_CLK 12
 const byte SW_pins[] = {A0, A1, A2, A3, A4, A5};
-#define LED_PIN 6
 
 // =========== ЛИБЫ ===========
 #include <GyverTM1637.h>
 #include <ServoSmooth.h>
 #include <microLED.h>
-#include "encUniversalMinim.h"
-#include "buttonMinim.h"
-#include "timer2Minim.h"
+#include <EEPROM.h>
+#include "common/encUniversalMinim.h"
+#include "common/buttonMinim.h"
+#include "common/timer2Minim.h"
 
 // =========== ДАТА ===========
-#define ORDER_GRB       // порядок цветов ORDER_GRB / ORDER_RGB / ORDER_BRG
 #define COLOR_DEBTH 2   // цветовая глубина: 1, 2, 3 (в байтах)
 LEDdata leds[NUM_SHOTS];  // буфер ленты типа LEDdata (размер зависит от COLOR_DEBTH)
 microLED strip(leds, NUM_SHOTS, LED_PIN);  // объект лента
@@ -73,7 +89,7 @@ buttonMinim encBtn(ENC_SW);
 timerMinim LEDtimer(100);
 timerMinim FLOWdebounce(20);
 timerMinim FLOWtimer(2000);
-timerMinim WAITtimer(300);
+timerMinim WAITtimer(400);
 timerMinim TIMEOUTtimer(15000);   // таймаут дёргания приводом
 timerMinim POWEROFFtimer(TIMEOUT_OFF * 60000L);
 
@@ -87,6 +103,8 @@ bool workMode = false;  // 0 manual, 1 auto
 int thisVolume = 50;
 bool systemON = false;
 bool timeoutState = false;
+bool volumeChanged = false;
+bool parking = false;
 
 // =========== МАКРО ===========
 #define servoON() digitalWrite(SERVO_POWER, 1)
@@ -95,7 +113,7 @@ bool timeoutState = false;
 #define pumpOFF() digitalWrite(PUMP_POWER, 0)
 
 #if (DEBUG_UART == 1)
-#define DEBUG(x) uart.println(x)
+#define DEBUG(x) Serial.println(x)
 #else
 #define DEBUG(x)
 #endif

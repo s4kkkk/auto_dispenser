@@ -73,3 +73,40 @@ event_queue_t* event_queue_t_init(event_queue_t *queue) {
 
   return queue;
 }
+
+/*
+void scheduler_t_init(scheduler_t* scheduler);
+
+uint8_t scheduler_t_add_task(scheduler_t* scheduler, task_t* task);
+
+uint8_t scheduler_t_delete_task(scheduler_t* scheduler, task_t* task);
+
+uint8_t scheduler_t_register_event(scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module));
+
+uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event);
+*/
+
+uint8_t scheduler_t_add_task(scheduler_t* scheduler, task_t* task) {
+  return 0;
+}
+
+uint8_t scheduler_t_delete_task(scheduler_t* scheduler, task_t* task) {
+  return 0;
+}
+
+uint8_t scheduler_t_register_event(scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module)) {
+  return 0;
+}
+
+uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event) {
+  return 0;
+}
+
+scheduler_t* scheduler_t_init(scheduler_t* scheduler) {
+
+  scheduler->add_task = scheduler_t_add_task;
+  scheduler->delete_task = scheduler_t_delete_task;
+  scheduler->register_event = scheduler_t_register_event;
+  scheduler->emit_event = scheduler_t_emit_event;
+  return scheduler;
+}

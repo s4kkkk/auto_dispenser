@@ -75,8 +75,8 @@ typedef struct {
 /* Модули - как-бы "драйверы", которые могут реагировать на внешние события и отсылать свои события.
  * при запуске модуля необходимо вызвать функцию metod_enter() в которой произвести инициализацию модуля
  * и привязку необходимых событий к модулю. При выходе из модуля, соответственно, вызвать module_enter().
- * Модули являются расширением обычных задач, но в отличие от задачи модули необязательно могут быть добавлены
- * в список активных задач. Модули могут только реагировать на события
+ * Модули являются расширением обычных задач в том смысле, что реакция на события доступна только модулям
+ * (классам - наследникам модулей, которые определяют обработчики)
  */
 
 typedef struct module module_t;
@@ -96,11 +96,13 @@ struct module {
 
 typedef struct scheduler scheduler_t;
 
-void scheduler_t_init(scheduler_t* scheduler);
+scheduler_t* scheduler_t_init(scheduler_t* scheduler);
 
 uint8_t scheduler_t_add_task(scheduler_t* scheduler, task_t* task);
 
 uint8_t scheduler_t_delete_task(scheduler_t* scheduler, task_t* task);
+
+uint8_t scheduler_t_register_event(scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module));
 
 uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event);
 
@@ -121,6 +123,12 @@ struct scheduler {
    * 2 - критическая ошибка
    */
   uint8_t (*delete_task) (scheduler_t* scheduler, task_t* task);
+  
+  /* Метод для регистрации события. Связывает событие с обработчиком.Возвращает:
+   * 0 - успешное выполнение
+   * 1 - критическая ошибка
+   */
+  uint8_t (*register_event) (scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module));  
 
   /* Метод для вызова события. Возвращает:
    * 0 - успешное выполнение
@@ -129,11 +137,12 @@ struct scheduler {
   uint8_t (*emit_event) (scheduler_t* scheduler, event_t* event);
 
 
+
   // ПРИВАТНЫЕ ПОЛЯ //
   
   /* Отображение, связывающее event с обработчиком */
 
-  void (*_handler[EVENTS_COUNT])(void);
+  void (*_handler[EVENTS_COUNT])(module_t* module);
 
   /* Очередь событий */
   event_queue_t events;
