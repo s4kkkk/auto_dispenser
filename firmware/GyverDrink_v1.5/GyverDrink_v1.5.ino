@@ -1,11 +1,11 @@
 #include "gyver_drink.hpp"
-
+#include "kernel/kernel.h"
 void setup() {
 #if (DEBUG_UART == 1)
   Serial.begin(9600);
   DEBUG("start");
 #endif
-  // епром
+  // епромtyp
   if (EEPROM.read(1000) != 10) {
     EEPROM.write(1000, 10);
     EEPROM.put(0, thisVolume);
