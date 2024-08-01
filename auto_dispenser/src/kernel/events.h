@@ -3,11 +3,10 @@
 
 /* Типы событий */
 typedef enum {
+  ENCODER_PRESSED,
+  ENCODER_RELEASED,
   ENCODER_TURN_LEFT,
   ENCODER_TURN_RIGHT,
-  ENCODER_PUSHED,
-  BUTTON_PUSHED,
-  BUTTON_RELEASED,
   EVENTS_COUNT
 } event_type_t;
 

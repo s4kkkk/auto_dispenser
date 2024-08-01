@@ -1,7 +1,5 @@
 #include "kernel.h"
 #include "events.h"
-#include <csignal>
-#include <cstdint>
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
@@ -310,5 +308,9 @@ scheduler_t* scheduler_t_init(scheduler_t* scheduler) {
 
   return scheduler;
 }
+
+/* Определение планировщика */
+
+scheduler_t scheduler;
 
 /* SCHEDULER_T END */
