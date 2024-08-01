@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "events.h"
 #include <csignal>
 #include <cstdint>
 #include <stdbool.h>
@@ -56,6 +57,10 @@ static event_t* event_queue_t_dequeue(event_queue_t* queue) {
   return event_to_return;
 }
 
+static uint8_t event_queue_t_get_events_number(event_queue_t* queue) {
+  return queue->_current_size;
+}
+
 
 event_queue_t* event_queue_t_init(event_queue_t *queue) {
 
@@ -71,9 +76,10 @@ event_queue_t* event_queue_t_init(event_queue_t *queue) {
   queue->_queue_start = 0;
   queue->_queue_end = 0;
 
+  queue->is_empty = event_queue_t_is_empty;
   queue->enqueue = event_queue_t_enqueue;
   queue->dequeue = event_queue_t_dequeue;
-  queue->is_empty = event_queue_t_is_empty;
+  queue->get_events_number = event_queue_t_get_events_number;
   queue->_current_size = 0;
 
   return queue;
@@ -182,12 +188,18 @@ static bool task_list_t_have_freespace(task_list_t* task_list) {
   else {return false;}
 }
 
+static uint8_t task_list_t_get_tasks_number(task_list_t* task_list) {
+  return task_list->_current_tasks;
+}
+
 task_list_t* task_list_t_init(task_list_t* task_list) {
 
   task_list->add_task = task_list_t_add_task;
   task_list->delete_task = task_list_t_delete_task;
   task_list->get_task = task_list_t_get_task;
   task_list->have_freespace = task_list_t_have_freespace;
+  task_list->get_tasks_number = task_list_t_get_tasks_number;
+
   task_list->_current_tasks = 0;
   task_list->_selected_task = 0;
   task_list->_free_field_index = 0;
@@ -218,27 +230,78 @@ uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event);
 */
 
 static void scheduler_t_func(task_t* task) {
-  return;
+
+  scheduler_t* scheduler = (scheduler_t* )task;
+
+  // запуск активных задач
+
+  uint8_t current_tasks_num = scheduler->_active_tasks.get_tasks_number(&scheduler->_active_tasks);
+
+  for (uint8_t i=0; i<current_tasks_num; i++) {
+    task_t* task = scheduler->_active_tasks.get_task(&scheduler->_active_tasks);
+    task->func(task);
+  }
+
+  // обработка возникших событий
+
+  uint8_t current_events = scheduler->_events.get_events_number(&scheduler->_events);
+
+  for (uint8_t i=0; i<current_events; i++) {
+    event_t* event = scheduler->_events.dequeue(&scheduler->_events);
+
+    void (*handler) (module_t*, event_t*) = scheduler->_event_bindings[event->event_type].handler;
+    module_t* handler_module = scheduler->_event_bindings[event->event_type].module;
+
+    handler(handler_module, event);
+
+  }
+
 }
 
 static uint8_t scheduler_t_add_task(scheduler_t* scheduler, task_t* task) {
-  return 0;
+
+  if (!scheduler || !task) {return 2;}
+
+  if (!scheduler->_active_tasks.have_freespace(&scheduler->_active_tasks)) {
+    return 1;
+  }
+  return scheduler->_active_tasks.add_task(&scheduler->_active_tasks, task);
 }
 
 static uint8_t scheduler_t_delete_task(scheduler_t* scheduler, task_t* task) {
-  return 0;
+
+  if (!scheduler || !task) {return 2;}
+
+  return scheduler->_active_tasks.delete_task(&scheduler->_active_tasks, task);
 }
 
-static uint8_t scheduler_t_register_event(scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module)) {
+static uint8_t scheduler_t_register_event(scheduler_t* scheduler, event_type_t event_type, void (*handler)(module_t*, event_t* ), module_t* module) {
+  if (!scheduler || !handler || !module) {return 1;}
+
+  // привязка события к обработчику
+  scheduler->_event_bindings[event_type].handler = handler;
+  scheduler->_event_bindings[event_type].module = module;
+
   return 0;
 }
 
 static uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event) {
-  return 0;
+  if (!scheduler || !event) {return 1;}
+  
+  return scheduler->_events.enqueue(&scheduler->_events, event);
 }
 
 scheduler_t* scheduler_t_init(scheduler_t* scheduler) {
 
+  // Инициализация _active_tasks
+
+  task_list_t_init(&scheduler->_active_tasks);
+
+  // Инициализация _events
+
+  event_queue_t_init(&scheduler->_events);
+  
+  // Основная инициализация планировщика 
   scheduler->add_task = scheduler_t_add_task;
   scheduler->delete_task = scheduler_t_delete_task;
   scheduler->register_event = scheduler_t_register_event;

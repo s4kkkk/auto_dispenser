@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -42,12 +43,15 @@ struct event_queue {
    */
   uint8_t (*enqueue)(event_queue_t* queue, event_t* event);
 
-  /* Вытащить событие из очереди Возвращает:
+  /* Вытащить событие из очереди. Возвращает:
    * event_t* - успешное выполнение
    * NULL - очередь пуста
    */
   event_t* (*dequeue)(event_queue_t* queue);
   
+  /*Сколько ожидающих событий? */
+
+  uint8_t (*get_events_number)(event_queue_t* queue);
   
   // ПРИВАТНЫЕ ПОЛЯ //
   event_t _events[MAX_EVENT_QUEUE];
@@ -76,7 +80,7 @@ struct task {
 
 /* Модули - как-бы "драйверы", которые могут реагировать на внешние события и отсылать свои события.
  * при запуске модуля необходимо вызвать функцию metod_enter() в которой произвести инициализацию модуля
- * и привязку необходимых событий к модулю. При выходе из модуля, соответственно, вызвать module_enter().
+ * и привязку необходимых событий к модулю. При выходе из модуля, соответственно, вызвать module_exit().
  * Модули являются расширением обычных задач в том смысле, что реакция на события доступна только модулям
  * (классам - наследникам модулей, которые определяют обработчики)
  */
@@ -86,11 +90,9 @@ typedef struct module module_t;
 struct module {
   task_t _task;
 
-  module_t* parent;
+  void (*module_enter)(module_t* module);
 
-  void (*module_enter)(void *resource);
-
-  void (*module_exit) (void *resource);
+  void (*module_exit) (module_t* module);
 
 };
 
@@ -124,6 +126,10 @@ struct task_list {
   /* Можно ли добавить задачу? */
   bool (*have_freespace) (task_list_t* task_list);
 
+  /* Сколько активных задач? */
+
+  uint8_t (*get_tasks_number) (task_list_t* task_list);
+
   // ПРИВАТНЫЕ ПОЛЯ //
   
   uint8_t _current_tasks;
@@ -134,6 +140,16 @@ struct task_list {
   task_t _tasks[MAX_TASKS];
 };
 
+
+/* Структура, хранящая связь обработчика события с событием */
+
+typedef struct event_to_handler_binding event_to_handler_binding_t;
+
+struct event_to_handler_binding {
+  void (*handler)(module_t*, event_t* event);
+  module_t* module;
+};
+
 /* Диспетчер задач, выполняющий периодический запуск задач, вызывающий обработчики событий. */
 
 typedef struct scheduler scheduler_t;
@@ -141,6 +157,7 @@ typedef struct scheduler scheduler_t;
 scheduler_t* scheduler_t_init(scheduler_t* scheduler);
 
 struct scheduler {
+
   task_t _task;
 
   /* Метод для добавления задачи. Возвращает:
@@ -161,7 +178,7 @@ struct scheduler {
    * 0 - успешное выполнение
    * 1 - критическая ошибка
    */
-  uint8_t (*register_event) (scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module));  
+  uint8_t (*register_event) (scheduler_t* scheduler, event_type_t event_type, void (*handler)(module_t*, event_t* ), module_t* module);  
 
   /* Метод для вызова события. Возвращает:
    * 0 - успешное выполнение
@@ -175,7 +192,7 @@ struct scheduler {
   
   /* Отображение, связывающее event с обработчиком */
 
-  void (*_handler[EVENTS_COUNT])(module_t* module);
+  event_to_handler_binding_t _event_bindings [EVENTS_COUNT];
 
   /* Очередь событий */
   event_queue_t _events;
