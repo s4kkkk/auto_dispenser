@@ -32,12 +32,6 @@ typedef struct event_queue event_queue_t;
 
 event_queue_t* event_queue_t_init(event_queue_t* queue);
 
-bool event_queue_t_is_empty(event_queue_t* queue);
-
-uint8_t event_queue_t_enqueue(event_queue_t* queue, event_t* event);
-
-event_t* event_queue_t_dequeue(event_queue_t* queue);
-
 struct event_queue {
   
   /* Очередь пуста? */
@@ -66,11 +60,19 @@ struct event_queue {
 };
 
 
-/* Тип задачи */
+/* Интерфейс задачи. Задача - базовая абстракция. Предполагается, что задача - просто периодически выполняемая
+ * функция со своими данными. При определении конкретной задачи (например, задачи опроса энкодера) создается 
+ * структура, наследуемая от task_t, в которой перечисляются необходимые для работы задачи данные. Предполагается, что
+ * перед каждым вызовом func() на вход передается указатель на задачу. Внутри func() этот указатель приводится к типу
+ * структуры конкретной задачи, таким образом в конкретной задаче можно взаимодействовать со статическими данными задачи
+ */
 
-typedef struct {
-  void (*func)(void *);
-} task_t;
+typedef struct task task_t;
+
+struct task {
+  void (*func)(task_t* task);
+};
+
 
 /* Модули - как-бы "драйверы", которые могут реагировать на внешние события и отсылать свои события.
  * при запуске модуля необходимо вызвать функцию metod_enter() в которой произвести инициализацию модуля
@@ -92,20 +94,51 @@ struct module {
 
 };
 
+/* Список задач. Используется в диспетчере */
+typedef struct task_list task_list_t;
+
+task_list_t* task_list_t_init(task_list_t* task_list);
+
+struct task_list {
+
+  /* Метод для добавления задачи. Возвращает:
+   * 0 - успешное выполнение
+   * 1 - исчерпан максимальный объем очереди задач
+   * 2 - критическая ошибка
+   */
+  uint8_t (*add_task) (task_list_t* task_list, task_t* task);
+
+  /* Метод для удаления задачи. Возвращает:
+   * 0 - успешное выполнение
+   * 1 - задача не найдена
+   * 2 - критическая ошибка
+   */
+  uint8_t (*delete_task) (task_list_t* task_list, task_t* task);
+
+  /* Метод для получения задачи. Возвращает:
+   * task_t* - успешное выполнение
+   * NULL - в случае ошибки (внутренняя ошибка, пустой списо и т.д.)
+   */
+  task_t* (*get_task) (task_list_t* task_list);
+  
+  /* Можно ли добавить задачу? */
+  bool (*have_freespace) (task_list_t* task_list);
+
+  // ПРИВАТНЫЕ ПОЛЯ //
+  
+  uint8_t _current_tasks;
+  uint8_t _selected_task;
+
+  uint8_t _free_field_index;
+
+  task_t _tasks[MAX_TASKS];
+};
+
 /* Диспетчер задач, выполняющий периодический запуск задач, вызывающий обработчики событий. */
 
 typedef struct scheduler scheduler_t;
 
 scheduler_t* scheduler_t_init(scheduler_t* scheduler);
-
-uint8_t scheduler_t_add_task(scheduler_t* scheduler, task_t* task);
-
-uint8_t scheduler_t_delete_task(scheduler_t* scheduler, task_t* task);
-
-uint8_t scheduler_t_register_event(scheduler_t* scheduler, event_t* event, void (*handler)(module_t* module));
-
-uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event);
-
 
 struct scheduler {
   task_t _task;
@@ -145,11 +178,11 @@ struct scheduler {
   void (*_handler[EVENTS_COUNT])(module_t* module);
 
   /* Очередь событий */
-  event_queue_t events;
+  event_queue_t _events;
 
   /* Массив, хранящий активные задачи */
 
-  task_t* _active_tasks[MAX_TASKS];
+  task_list_t _active_tasks;
 
 };
 
