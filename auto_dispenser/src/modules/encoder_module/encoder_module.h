@@ -16,4 +16,6 @@ struct encoder_module {
   enc_module_state_t module_state;
 };
 
+void encoder_module_t_init(encoder_module_t* encoder_module);
+
 #endif // ENCODER_MODULE_H
