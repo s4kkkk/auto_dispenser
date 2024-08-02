@@ -322,6 +322,11 @@ static void scheduler_t_delay_us(scheduler_t* scheduler, task_t* task, uint32_t 
     }
 
   }
+
+  if (task) {
+    scheduler->add_task(scheduler, task);
+  }
+
   return;
 }
 
@@ -352,6 +357,11 @@ static void scheduler_t_delay_ms(scheduler_t* scheduler, task_t* task, uint32_t 
     }
 
   }
+
+  if (task) {
+    scheduler->add_task(scheduler, task);
+  }
+
   return;
 }
 
