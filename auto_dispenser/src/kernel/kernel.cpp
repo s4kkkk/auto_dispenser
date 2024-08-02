@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <time.h>
 
+#include <Arduino.h>
 
 /* EVENT_QUEUE_T */
 
@@ -289,6 +290,71 @@ static uint8_t scheduler_t_emit_event(scheduler_t* scheduler, event_t* event) {
   return scheduler->_events.enqueue(&scheduler->_events, event);
 }
 
+
+#ifndef UINT32_MAX
+#define UINT32_MAX ( (uint32_t) (-1) )
+#endif
+
+static void scheduler_t_delay_us(scheduler_t* scheduler, task_t* task, uint32_t useconds) {
+
+  // получение текущего времени  
+  uint32_t saved_time = micros();
+
+  // удаление текущей задачи из списка активных
+  if (task) {
+    scheduler->delete_task(scheduler, task);
+  }
+  
+  uint32_t delta = 0;
+
+  while (delta < useconds) {
+    scheduler->_task.func((task_t* ) scheduler);
+
+    // вычисление прошедшего времени
+    uint32_t current_time = micros();
+
+    if (current_time >= saved_time) {
+      delta = current_time - saved_time;
+    }
+    else {
+      // произошло переполнение
+      delta = current_time + (UINT32_MAX - saved_time + 1);
+    }
+
+  }
+  return;
+}
+
+static void scheduler_t_delay_ms(scheduler_t* scheduler, task_t* task, uint32_t mseconds) {
+
+  // получение текущего времени  
+  uint32_t saved_time = millis();
+
+  // удаление текущей задачи из списка активных
+  if (task) {
+    scheduler->delete_task(scheduler, task);
+  }
+  
+  uint32_t delta = 0;
+
+  while (delta < mseconds) {
+    scheduler->_task.func((task_t* ) scheduler);
+
+    // вычисление прошедшего времени
+    uint32_t current_time = millis();
+
+    if (current_time >= saved_time) {
+      delta = current_time - saved_time;
+    }
+    else {
+      // произошло переполнение
+      delta = current_time + (UINT32_MAX - saved_time + 1);
+    }
+
+  }
+  return;
+}
+
 scheduler_t* scheduler_t_init(scheduler_t* scheduler) {
 
   // Инициализация _active_tasks
@@ -304,6 +370,9 @@ scheduler_t* scheduler_t_init(scheduler_t* scheduler) {
   scheduler->delete_task = scheduler_t_delete_task;
   scheduler->register_event = scheduler_t_register_event;
   scheduler->emit_event = scheduler_t_emit_event;
+  scheduler->delay_us = scheduler_t_delay_us;
+  scheduler->delay_ms = scheduler_t_delay_ms;
+
   ((task_t* ) scheduler)->func = scheduler_t_func;
 
   return scheduler;

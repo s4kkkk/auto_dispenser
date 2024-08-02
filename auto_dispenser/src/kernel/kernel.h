@@ -185,7 +185,11 @@ struct scheduler {
    */
   uint8_t (*emit_event) (scheduler_t* scheduler, event_t* event);
 
+  /* Метод для задержки в мкс */
+  void (*delay_us) (scheduler_t* scheduler, task_t* task, uint32_t useconds);
 
+  /* Метод для задержки в мс */
+  void (*delay_ms) (scheduler_t* scheduler, task_t* task, uint32_t mseconds);
 
   // ПРИВАТНЫЕ ПОЛЯ //
   
