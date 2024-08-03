@@ -8,6 +8,7 @@ struct test_module {
   module_t _module;
   
   void (*handler1) (module_t* module, event_t* event);
+  void (*button_handler) (module_t* module, event_t* event);
 
 };
 

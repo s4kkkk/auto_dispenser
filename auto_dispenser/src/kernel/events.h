@@ -7,6 +7,7 @@ typedef enum {
   ENCODER_RELEASED,
   ENCODER_TURN_LEFT,
   ENCODER_TURN_RIGHT,
+  BUTTON_PRESSED,
   EVENTS_COUNT
 } event_type_t;
 

@@ -4,8 +4,6 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
-extern HardwareSerial Serial;
-
 /* функция, которая будет вызываться диспетчером в цикле (периодически).
  * в этой функции опрос энкодера.
  */
@@ -130,4 +128,3 @@ void encoder_module_t_init(encoder_module_t* encoder_module) {
 }
 
 encoder_module_t encoder_module;
-

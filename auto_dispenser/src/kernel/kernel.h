@@ -8,7 +8,9 @@
 // #define DEBUG_ON
 
 #ifdef DEBUG_ON
-#define DEBUG(...) Serial.print(__VA_ARGS__)
+#define DEBUG(...) \
+  Serial.print("[DEBUG]: "); \
+  Serial.println(__VA_ARGS__)
 #define TRACE(...) \
   Serial.print("[TRACE]: "); \
   Serial.println(__VA_ARGS__)
