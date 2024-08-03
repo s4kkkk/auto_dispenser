@@ -5,7 +5,7 @@
 #define KERNEL_H
 #include "events.h"
 
-#define DEBUG_ON
+// #define DEBUG_ON
 
 #ifdef DEBUG_ON
 #define DEBUG(...) Serial.print(__VA_ARGS__)
@@ -21,10 +21,10 @@
 /*--------------------ОБЩИЕ НАСТРОЙКИ----------------------*/
 
 /* Максимальное число элементов в очереди событий. Максимально возможное - 255 */
-#define MAX_EVENT_QUEUE 4
+#define MAX_EVENT_QUEUE 10
 
 /* Максимальное число активных задач */
-#define MAX_TASKS 10
+#define MAX_TASKS 20
 
 /*-------------------------КОНЕЦ---------------------------*/
 
@@ -109,7 +109,10 @@ struct module {
 
 };
 
+
+
 /* Список задач. Используется в диспетчере */
+
 typedef struct task_list task_list_t;
 
 task_list_t* task_list_t_init(task_list_t* task_list);
@@ -121,14 +124,14 @@ struct task_list {
    * 1 - исчерпан максимальный объем очереди задач
    * 2 - критическая ошибка
    */
-  uint8_t (*add_task) (task_list_t* task_list, task_t* task);
+  uint8_t (*add_task) (task_list_t* task_list, const task_t* task);
 
   /* Метод для удаления задачи. Возвращает:
    * 0 - успешное выполнение
    * 1 - задача не найдена
    * 2 - критическая ошибка
    */
-  uint8_t (*delete_task) (task_list_t* task_list, task_t* task);
+  uint8_t (*delete_task) (task_list_t* task_list, const task_t* task);
 
   /* Метод для получения задачи. Возвращает:
    * task_t* - успешное выполнение
@@ -150,7 +153,7 @@ struct task_list {
 
   uint8_t _free_field_index;
 
-  task_t _tasks[MAX_TASKS];
+  task_t* _tasks[MAX_TASKS];
 };
 
 
@@ -208,7 +211,6 @@ struct scheduler {
   // ПРИВАТНЫЕ ПОЛЯ //
   
   /* Отображение, связывающее event с обработчиком */
-
   event_to_handler_binding_t _event_bindings [EVENTS_COUNT];
 
   /* Очередь событий */

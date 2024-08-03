@@ -61,7 +61,6 @@ static void encoder_module_t_task(task_t* task) {
   if (encoder_module->prev_button_state && !sw) {
     
     // защита от дребезга
-    //delay(10);
     DEBUG("[DEBUG]: In encoder_task: entering delay_ms\n");
     scheduler.delay_ms(&scheduler, task, 10);
     DEBUG("[DEBUG]: In encoder_task: delay is done. continuing..\n");
@@ -79,7 +78,7 @@ static void encoder_module_t_task(task_t* task) {
   else if (!encoder_module->prev_button_state && sw) {
 
     // защита от дребезга
-    //delay(10);
+
     DEBUG("[DEBUG]: In encoder_task: entering delay_ms\n");
     scheduler.delay_ms(&scheduler, task, 10);
     DEBUG("[DEBUG]: In encoder_task: delay is done. continuing..\n");

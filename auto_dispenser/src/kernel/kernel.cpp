@@ -90,13 +90,13 @@ event_queue_t* event_queue_t_init(event_queue_t *queue) {
 
 /* TASK_LIST_T */
 
-static uint8_t task_list_t_add_task(task_list_t* task_list, task_t* task) {
+static uint8_t task_list_t_add_task(task_list_t* task_list, const task_t* task) {
 
   if (!task || !task_list) {return 2;}
 
   if (!task_list->have_freespace(task_list)) {return 1;}
 
-  task_list->_tasks[task_list->_free_field_index] = *task;
+  task_list->_tasks[task_list->_free_field_index] = (task_t* )task;
   task_list->_current_tasks++;
 
   if (task_list->have_freespace(task_list)) {
@@ -112,7 +112,7 @@ static task_t* task_list_t_get_task(task_list_t* task_list) {
     return (task_t* ) NULL;
   }
 
-  task_t* task_to_return = &task_list->_tasks[task_list->_selected_task];
+  task_t* task_to_return = task_list->_tasks[task_list->_selected_task];
   if (task_list->_selected_task < task_list->_current_tasks - 1) {
     task_list->_selected_task++;
   }
@@ -123,12 +123,12 @@ static task_t* task_list_t_get_task(task_list_t* task_list) {
   return task_to_return;
 }
 
-static uint8_t task_list_t_delete_task(task_list_t* task_list, task_t* task) {
+static uint8_t task_list_t_delete_task(task_list_t* task_list, const task_t* task) {
 
   uint8_t task_index = 0;
 
   for (; task_index < task_list->_current_tasks; task_index++) {
-    if (task_list->_tasks[task_index].func == task->func) {
+    if (task_list->_tasks[task_index] == task) {
       // Задача найдена
       break;
     }
@@ -145,7 +145,7 @@ static uint8_t task_list_t_delete_task(task_list_t* task_list, task_t* task) {
     task_list->_selected_task--;
   }
 
-  task_list->_tasks[task_index].func = NULL;
+  task_list->_tasks[task_index] = NULL;
   task_list->_current_tasks--;
 
   if (task_list->_current_tasks == 0) {
@@ -161,7 +161,7 @@ static uint8_t task_list_t_delete_task(task_list_t* task_list, task_t* task) {
       uint8_t first_ta_index = i;
     
       for (; first_ta_index < old_tasks_num; first_ta_index++) {
-        if (task_list->_tasks[first_ta_index].func != NULL) {break;}
+        if (task_list->_tasks[first_ta_index] != NULL) {break;}
       }
 
       if (first_ta_index == i) {
@@ -177,7 +177,7 @@ static uint8_t task_list_t_delete_task(task_list_t* task_list, task_t* task) {
       // переноc задачи в начало массива
 
       task_list->_tasks[i] = task_list->_tasks[first_ta_index];
-      task_list->_tasks[first_ta_index].func = 0;
+      task_list->_tasks[first_ta_index] = 0;
     }
     task_list->_free_field_index = task_list->_current_tasks;
   }
@@ -208,7 +208,7 @@ task_list_t* task_list_t_init(task_list_t* task_list) {
   // зануление задач
   
   for (uint8_t i=0; i<MAX_TASKS; i++) {
-    task_list->_tasks[i].func = NULL;
+    task_list->_tasks[i] = NULL;
   }
 
   return task_list;
