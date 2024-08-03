@@ -125,8 +125,8 @@ void encoder_module_t_init(encoder_module_t* encoder_module) {
   encoder_module->_module._task.func = encoder_module_t_task;
   encoder_module->_module.module_enter = encoder_module_t_module_enter;
   encoder_module->_module.module_exit= encoder_module_t_module_exit;
-  encoder_module->module_state = READY;
-  encoder_module->prev_button_state = 0;
+  encoder_module->module_state = WAIT_TO_HIGH;
+  encoder_module->prev_button_state = 1;
 }
 
 encoder_module_t encoder_module;
