@@ -2,12 +2,17 @@
 #include "encoder_settings.h"
 #include "../../global_storage.h"
 #include <Arduino.h>
+#include <HardwareSerial.h>
+
+extern HardwareSerial Serial;
 
 /* функция, которая будет вызываться диспетчером в цикле (периодически).
  * в этой функции опрос энкодера.
  */
 
 static void encoder_module_t_task(task_t* task) {
+  TRACE("encoder_module_t_task");
+
   encoder_module_t* encoder_module = (encoder_module_t* ) task;
 
   // обработка поворотов
@@ -28,11 +33,12 @@ static void encoder_module_t_task(task_t* task) {
         .event_data = NULL
       };
 
+      DEBUG("[DEBUG]: In encoder_task: detected turn_right. Generating event\n");
       scheduler.emit_event(&scheduler, &new_event);
     }
 
     if (!dt) {
-      // зафиксирован поворото влево
+      // зафиксирован поворот влево
       encoder_module->module_state = WAIT_TO_HIGH;
 
       // генерация события ENCODER_TURN_LEFT
@@ -42,6 +48,7 @@ static void encoder_module_t_task(task_t* task) {
         .event_data = NULL
       };
 
+      DEBUG("[DEBUG]: In encoder_task: detected turn_left. Generating event\n");
       scheduler.emit_event(&scheduler, &new_event);
     }
   }
@@ -52,6 +59,12 @@ static void encoder_module_t_task(task_t* task) {
 
   // обработка нажатий
   if (encoder_module->prev_button_state && !sw) {
+    
+    // защита от дребезга
+    //delay(10);
+    DEBUG("[DEBUG]: In encoder_task: entering delay_ms\n");
+    scheduler.delay_ms(&scheduler, task, 10);
+    DEBUG("[DEBUG]: In encoder_task: delay is done. continuing..\n");
 
     encoder_module->prev_button_state = sw;
     // зафиксировано нажатие. генерация события ENCODER_PRESSED
@@ -64,6 +77,12 @@ static void encoder_module_t_task(task_t* task) {
     
   } 
   else if (!encoder_module->prev_button_state && sw) {
+
+    // защита от дребезга
+    //delay(10);
+    DEBUG("[DEBUG]: In encoder_task: entering delay_ms\n");
+    scheduler.delay_ms(&scheduler, task, 10);
+    DEBUG("[DEBUG]: In encoder_task: delay is done. continuing..\n");
 
     encoder_module->prev_button_state = sw;
 
@@ -79,11 +98,14 @@ static void encoder_module_t_task(task_t* task) {
 /* функция, которую необходимо вызвать для инициализации модуля. В ней настраиваются все необходимые пины и пр. */
 
 static void encoder_module_t_module_enter(module_t* module) {
+  TRACE("encoder_module_t_module_enter");
 
   pinMode(ENCODER_CLK_PIN, INPUT);
   pinMode(ENCODER_DT_PIN, INPUT);
   pinMode(ENCODER_SW_PIN, INPUT);
   
+  scheduler.add_task(&scheduler, (task_t* ) module);
+
   return;
 }
 
@@ -99,6 +121,7 @@ static void encoder_module_t_module_exit(module_t* module) {
 /* функция для заполнения экземпляра */
 
 void encoder_module_t_init(encoder_module_t* encoder_module) {
+  TRACE("encoder_module_t_init");
 
   encoder_module->_module._task.func = encoder_module_t_task;
   encoder_module->_module.module_enter = encoder_module_t_module_enter;

@@ -14,8 +14,44 @@ static void test_module_t_task(task_t* task) {
   return;
 }
 
+static void test_module_t_handler(module_t* module, event_t* pending_event) {
+  TRACE("test_module_t_handler");
+
+  event_type_t event_type = pending_event->event_type;
+
+  switch (event_type) {
+
+    case ENCODER_TURN_LEFT: 
+      Serial.println("ENCODER_TURN_LEFT");
+      break;
+
+    case ENCODER_TURN_RIGHT: 
+      Serial.println("ENCODER_TURN_RIGHT");
+      break;
+
+    case ENCODER_PRESSED: 
+      Serial.println("ENCODER_PRESSED");
+      break;
+
+    case ENCODER_RELEASED: 
+      Serial.println("ENCODER_RELEASED");
+      break;
+
+    default:
+      break;
+  }
+  return;
+}
+
+
 static void test_module_t_module_enter(module_t* module) {
-  scheduler.add_task(&scheduler, (task_t* ) module);
+  TRACE("test_module_t_module_enter");
+  // scheduler.add_task(&scheduler, (task_t* ) module);
+  //
+  scheduler.register_event(&scheduler, ENCODER_TURN_LEFT, &test_module_t_handler, (module_t* ) module);
+  scheduler.register_event(&scheduler, ENCODER_TURN_RIGHT, &test_module_t_handler, (module_t* ) module);
+  scheduler.register_event(&scheduler, ENCODER_PRESSED, &test_module_t_handler, (module_t* ) module);
+  scheduler.register_event(&scheduler, ENCODER_RELEASED, &test_module_t_handler, (module_t*) module);
   return;
 }
 
@@ -23,11 +59,8 @@ static void test_module_t_module_exit(module_t* module) {
   return;
 }
 
-static void test_module_t_handler1(module_t* module, event_t* event) {
-  return;
-}
-
 void test_module_t_init(test_module_t* module) {
+  TRACE("test_module_t_init");
 
   ((module_t *) module)->_task.func = test_module_t_task;
   ((module_t *) module)->module_enter = test_module_t_module_enter;

@@ -4,6 +4,20 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 #include "events.h"
+
+#define DEBUG_ON
+
+#ifdef DEBUG_ON
+#define DEBUG(...) Serial.print(__VA_ARGS__)
+#define TRACE(...) \
+  Serial.print("[TRACE]: "); \
+  Serial.println(__VA_ARGS__)
+
+#else
+#define DEBUG(...)
+#define TRACE(...)
+#endif
+
 /*--------------------ОБЩИЕ НАСТРОЙКИ----------------------*/
 
 /* Максимальное число элементов в очереди событий. Максимально возможное - 255 */
