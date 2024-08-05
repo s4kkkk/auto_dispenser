@@ -225,17 +225,15 @@ static void scheduler_t_func(task_t* task) {
   scheduler_t* scheduler = (scheduler_t* )task;
 
   // запуск активных задач
+  // delay(500);
 
   uint8_t current_tasks_num = scheduler->_active_tasks.get_tasks_number(&scheduler->_active_tasks);
   
-  // delay(1000);
-  
-  DEBUG("[DEBUG]: In Scheulder: Current tasks num: ");
+  DEBUG("In Scheulder: Current tasks num: ");
   DEBUG(current_tasks_num);
-  DEBUG("\n");
 
   for (uint8_t i=0; i<current_tasks_num; i++) {
-    DEBUG("[DEBUG]: In Scheulder: Entering task\n");
+    DEBUG("In Scheulder: Entering task\n");
     task_t* task = scheduler->_active_tasks.get_task(&scheduler->_active_tasks);
     task->func(task);
   }
@@ -243,18 +241,18 @@ static void scheduler_t_func(task_t* task) {
   // обработка возникших событий
 
   uint8_t current_events = scheduler->_events.get_events_number(&scheduler->_events);
-  DEBUG("[DEBUG]: In scheduler. Current events: ");
-  DEBUG(current_events); DEBUG("\n");
+  DEBUG("In scheduler. Current events: ");
+  DEBUG(current_events);
 
   for (uint8_t i=0; i<current_events; i++) {
-    DEBUG("[DEBUG]: In scheduler. Processing event\n");
+    DEBUG("In scheduler. Processing event\n");
     event_t* event = scheduler->_events.dequeue(&scheduler->_events);
 
     void (*handler) (module_t*, event_t*) = scheduler->_event_bindings[event->event_type].handler;
     module_t* handler_module = scheduler->_event_bindings[event->event_type].module;
 
     handler(handler_module, event);
-    DEBUG("[DEBUG]: In scheduler. Processing event done\n");
+    DEBUG("In scheduler. Processing event done\n");
   }
 
   return;
@@ -269,7 +267,7 @@ static uint8_t scheduler_t_add_task(scheduler_t* scheduler, task_t* task) {
     return 1;
   }
 
-  DEBUG("[DEBUG]: In add_task: Adding task\n");
+  DEBUG("In add_task: Adding task\n");
   return scheduler->_active_tasks.add_task(&scheduler->_active_tasks, task);
 }
 
@@ -278,7 +276,7 @@ static uint8_t scheduler_t_delete_task(scheduler_t* scheduler, task_t* task) {
 
   if (!scheduler || !task) {return 2;}
 
-  DEBUG("[DEBUG]: In delete_task: Deleting task\n");
+  DEBUG("In delete_task: Deleting task\n");
   return scheduler->_active_tasks.delete_task(&scheduler->_active_tasks, task);
 }
 
@@ -350,7 +348,7 @@ static void scheduler_t_delay_ms(scheduler_t* scheduler, task_t* task, uint32_t 
 
   // удаление текущей задачи из списка активных
   if (task) {
-    DEBUG("[DEBUG]: In delay_ms: deleting task\n");
+    DEBUG("In delay_ms: deleting task\n");
 
     scheduler->delete_task(scheduler, task);
   }
@@ -359,7 +357,7 @@ static void scheduler_t_delay_ms(scheduler_t* scheduler, task_t* task, uint32_t 
 
   while (delta < mseconds) {
 
-    DEBUG("[DEBUG]: In delay_ms. Entering scheduler\n");
+    DEBUG("In delay_ms. Entering scheduler\n");
 
     scheduler->_task.func((task_t* ) scheduler);
 
@@ -371,14 +369,38 @@ static void scheduler_t_delay_ms(scheduler_t* scheduler, task_t* task, uint32_t 
     }
     else {
       // произошло переполнение
-      DEBUG("[DEBUG]: In delay_ms: triggered overflow!\n");
+      DEBUG("In delay_ms: triggered overflow!\n");
       delta = current_time + (UINT32_MAX - saved_time + 1);
     }
 
   }
 
   if (task) {
-    DEBUG("[DEBUG]: In delay_ms: adding task\n");
+    DEBUG("In delay_ms: adding task\n");
+    scheduler->add_task(scheduler, task);
+  }
+
+  return;
+}
+
+static void scheduler_t_wait(scheduler_t* scheduler, task_t* task, bool (*check_func)(void* data), void* data) {
+  TRACE("scheduler_t_wait");
+
+  /* удаление текущей задачи из списка активных */
+  if (task) {
+    DEBUG("In delay_ms: deleting task\n");
+
+    scheduler->delete_task(scheduler, task);
+  }
+
+  /* запуск диспетчера до тех пор, пока не будет выполнено условие выхода из ожидания */
+  while (!check_func(data)) {
+    scheduler->_task.func((task_t* ) scheduler);
+  }
+
+  /* добавление удаленной задачи в очередь */
+  if (task) {
+    DEBUG("In delay_ms: adding task\n");
     scheduler->add_task(scheduler, task);
   }
 
@@ -403,6 +425,7 @@ scheduler_t* scheduler_t_init(scheduler_t* scheduler) {
   scheduler->emit_event = scheduler_t_emit_event;
   scheduler->delay_us = scheduler_t_delay_us;
   scheduler->delay_ms = scheduler_t_delay_ms;
+  scheduler->wait = scheduler_t_wait;
 
   ((task_t* ) scheduler)->func = scheduler_t_func;
 

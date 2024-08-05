@@ -210,6 +210,9 @@ struct scheduler {
   /* Метод для задержки в мс */
   void (*delay_ms) (scheduler_t* scheduler, task_t* task, uint32_t mseconds);
 
+  /* Метод ожидания. Останавливает задачу до тех пор, пока check_func не вернет true */
+  void (*wait) (scheduler_t* scheduler, task_t* task, bool (*check_func)(void* data), void* data);
+
   // ПРИВАТНЫЕ ПОЛЯ //
   
   /* Отображение, связывающее event с обработчиком */

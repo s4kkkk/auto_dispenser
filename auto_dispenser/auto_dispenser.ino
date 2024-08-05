@@ -2,6 +2,7 @@
 #include "src/global_storage.h"
 #include "src/modules/button_module/button_module.h"
 #include "src/modules/test_module/test_module.h"
+#include "src/modules/scales_module/scales_module.h"
 
 void setup() {
 
@@ -9,7 +10,7 @@ void setup() {
 
   scheduler_t_init(&scheduler);
    
-  // подключение модуля энкодера
+  /* подключение модуля энкодера
   encoder_module_t_init(&encoder_module);
   ((module_t* ) &encoder_module)->module_enter( (module_t* ) &encoder_module ); 
   
@@ -20,6 +21,12 @@ void setup() {
   // тестовый модуль
   test_module_t_init(&test_module);
   ((module_t *) &test_module)->module_enter((module_t* ) &test_module);
+  */
+  
+  // модуль весов
+  scales_module_t_init(&scales_module);
+  ((module_t* ) &scales_module)->module_enter( (module_t* ) &scales_module);
+
 }
 
 
