@@ -16,6 +16,7 @@ extern test_module_t test_module;
 #include "modules/scales_module/scales_module.h"
 extern scales_module_t scales_module;
 
+
 extern scheduler_t scheduler;
 
 #endif // GLOBAL_STORAGE_H

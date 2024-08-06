@@ -9,6 +9,7 @@ typedef enum {
   ENCODER_TURN_RIGHT,
   BUTTON_PRESSED,
   GLASS_AVAILABLE_CHANGE,
+  SERVO_DONE,
   EVENTS_COUNT
 } event_type_t;
 
