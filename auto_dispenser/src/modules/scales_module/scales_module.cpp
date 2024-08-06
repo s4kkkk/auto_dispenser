@@ -68,29 +68,65 @@ static int32_t adc_read(scales_module_t* module, uint8_t channel) {
   return count - module->callibration_koefs[channel];
 }
 
-static void adc_calibrate(scales_module_t* module){
+static void adc_calibrate(scales_module_t* module, uint8_t channel_num){
   TRACE("adc_calibrate");
 
+  if (255 == channel_num) {
+    /* тарирование всех каналов */
+
+    /* Два считывания для улучшения дальнейших показаний */
+    for (uint8_t i=0; i<2; i++) {
+      for (uint8_t j=0; j<CHANNEL_COUNT; j++) {
+        adc_read(module, j);
+      }
+    }
   
-  /* Два считывания для улучшения дальнейших показаний */
-  for (uint8_t i=0; i<2; i++) {
-    for (uint8_t j=0; j<CHANNEL_COUNT; j++) {
-      adc_read(module, j);
+    for (uint8_t i=0; i<CHANNEL_COUNT; i++) {
+      int64_t cal_samples_sum = 0;
+      module->callibration_koefs[i] = 0;
+      for (uint8_t j=0; j<5; j++) {
+        cal_samples_sum += adc_read(module, i);
+      }
+      cal_samples_sum = cal_samples_sum / 5;
+      module->callibration_koefs[i] = cal_samples_sum;
     }
   }
   
-  for (uint8_t i=0; i<CHANNEL_COUNT; i++) {
+  else {
+    /* тарирование конкретного канала */
+
+    /* Два считывания для улучшения дальнейших показаний */
+    for (uint8_t i=0; i<2; i++) {
+      adc_read(module, channel_num);
+    }
+
     int64_t cal_samples_sum = 0;
-    module->callibration_koefs[i] = 0;
-    for (uint8_t j=0; j<5; j++) {
-      cal_samples_sum += adc_read(module, i);
+    module->callibration_koefs[channel_num] = 0;
+    for (uint8_t i=0; i<5; i++) {
+      cal_samples_sum += adc_read(module, channel_num);
     }
     cal_samples_sum = cal_samples_sum / 5;
-    module->callibration_koefs[i] = cal_samples_sum;
+    module->callibration_koefs[channel_num] = cal_samples_sum;
   }
+
   return;
 }
 
+static uint8_t get_channel_num (uint8_t sensor_num) {
+
+  switch(sensor_num) {
+    case 5:
+      {
+        return 6;
+        break;
+      }
+    default:
+      {
+        return sensor_num;
+        break;
+      }
+  }
+}
 
 static int32_t scales_module_t_get_weight (scales_module_t* module, uint8_t sensor_num) {
   TRACE("scales_module_t_get_weight");
@@ -100,39 +136,61 @@ static int32_t scales_module_t_get_weight (scales_module_t* module, uint8_t sens
     return 0;
   }
   
-  int32_t adc_result = 0;
   uint8_t channel_num = 0;
 
   /* Получение номера канала в зависимости от номера датчика */
 
-  switch(sensor_num) {
-    case 5:
-      {
-        channel_num = 6;
-        break;
-      }
-    default:
-      {
-        channel_num = sensor_num;
-        break;
-      }
-  }
+  channel_num = get_channel_num(sensor_num);
   
   return adc_read(module, channel_num) / module->adc_to_grams[channel_num];
 }
 
+static void scales_module_t_tare (scales_module_t* module, uint8_t sensor_num) {
+  TRACE("scales_module_t_tare");
+  
+  uint8_t channel_num = get_channel_num(sensor_num);
+  adc_calibrate(module, channel_num);
+  return;
+}
+
 static void scales_module_t_task(task_t* task) {
   TRACE("scales_module_t_task");
+  
   scales_module_t* module = (scales_module_t* ) task;
 
-  // пока просто выводим данные
-  
-  for (uint8_t i=0; i<SENSORS_COUNT; i++){
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.println(module->get_weight(module, i) );
+  /*
+  while(1) {
+    Serial.println(module->get_weight(module, 1));
   }
-  Serial.println("---------------------------------");
+  */
+
+  uint8_t current_glass_positions = module->last_glass_posistions;
+
+  for (uint8_t i=0; i<SENSORS_COUNT; i++) {
+
+    int32_t current_weight = module->get_weight(module, i);
+
+    if (current_weight > GLASS_THRESHOLD + HYSTERESIS_WIDTH ) {
+      current_glass_positions |= (0b1<<i);
+    }
+    else if (current_weight < GLASS_THRESHOLD - HYSTERESIS_WIDTH ) {
+      current_glass_positions &= ~(0b1<<i);
+    }
+
+  }
+
+  if (current_glass_positions != module->last_glass_posistions) {
+
+    /* Обнаружено изменение состояния рюмок. Генерация события GLASS_AVAILABLE_CHANGE */
+    module->last_glass_posistions = current_glass_positions;
+
+    event_t new_event = {
+      .event_type = GLASS_AVAILABLE_CHANGE,
+      .event_data = &(module->last_glass_posistions)
+    };
+
+    scheduler.emit_event(&scheduler, &new_event);
+  }
    
   return;
 }
@@ -147,7 +205,7 @@ static void scales_module_t_module_enter(module_t* module) {
 
   scheduler.add_task(&scheduler, (task_t* ) module);
 
-  adc_calibrate((scales_module_t* ) module);
+  adc_calibrate((scales_module_t* ) module, TARE_ALL);
   return;
 }
 
@@ -162,6 +220,7 @@ void scales_module_t_init(scales_module_t* module) {
   ((module_t* ) module)->module_enter = scales_module_t_module_enter;
   ((module_t* ) module)->module_exit = scales_module_t_module_exit;
   module->get_weight = scales_module_t_get_weight;
+  module->tare = scales_module_t_tare;
 
   return;
 }

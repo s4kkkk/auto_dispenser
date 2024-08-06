@@ -17,11 +17,12 @@ void setup() {
   // подключение модуля кнопки
   button_module_t_init(&button_module);
   ((module_t* ) &button_module)->module_enter( (module_t *) &button_module );
-
+  */
+  
   // тестовый модуль
   test_module_t_init(&test_module);
   ((module_t *) &test_module)->module_enter((module_t* ) &test_module);
-  */
+  
   
   // модуль весов
   scales_module_t_init(&scales_module);

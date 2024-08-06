@@ -58,6 +58,39 @@ static void test_module_t_button_handler(module_t* module, event_t* pending_even
   return;
 }
 
+static void test_module_t_scales_handler(module_t* module, event_t* pending_event) {
+  TRACE("test_module_t_button_handler");
+  
+  test_module_t* test_module = (test_module_t* ) module;
+
+  uint8_t current_glass_state = *((uint8_t* ) pending_event->event_data);
+
+  // Поиск отличающихся битов
+  for (uint8_t i=0; i<8; i++) {
+
+    if ( ( (0b1<<i) & current_glass_state ) ^ ( (0b1<<i) & test_module->last_glass_states) ) {
+
+      // i-й бит отличается
+      if ( (0b1<<i) & current_glass_state ) {
+        // рюмку поставили
+        Serial.print("Glass ");
+        Serial.print(i);
+        Serial.println(" is set!");
+      }
+      else {
+        Serial.print("Glass ");
+        Serial.print(i);
+        Serial.println(" is removed!");
+      }
+    }
+
+  }
+  test_module->last_glass_states = current_glass_state;
+
+  return;
+}
+
+
 static void test_module_t_module_enter(module_t* module) {
   TRACE("test_module_t_module_enter");
   // scheduler.add_task(&scheduler, (task_t* ) module);
@@ -67,6 +100,7 @@ static void test_module_t_module_enter(module_t* module) {
   scheduler.register_event(&scheduler, ENCODER_PRESSED, &test_module_t_handler, (module_t* ) module);
   scheduler.register_event(&scheduler, ENCODER_RELEASED, &test_module_t_handler, (module_t*) module);
   scheduler.register_event(&scheduler, BUTTON_PRESSED, &test_module_t_button_handler, (module_t* ) module);
+  scheduler.register_event(&scheduler, GLASS_AVAILABLE_CHANGE, &test_module_t_scales_handler, (module_t* ) module);
 
   return;
 }
@@ -84,6 +118,7 @@ void test_module_t_init(test_module_t* module) {
   module->handler1 = test_module_t_handler;
   module->button_handler = test_module_t_button_handler;
 
+  module->last_glass_states = 0;
 }
 
 /* Определение экземпляра */

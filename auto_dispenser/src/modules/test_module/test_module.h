@@ -9,6 +9,9 @@ struct test_module {
   
   void (*handler1) (module_t* module, event_t* event);
   void (*button_handler) (module_t* module, event_t* event);
+  void (*scales_handler) (module_t* module, event_t* event);
+
+  uint8_t last_glass_states;
 
 };
 
