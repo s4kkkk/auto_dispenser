@@ -92,60 +92,48 @@ static void adc_calibrate(scales_module_t* module){
 }
 
 
+static int32_t scales_module_t_get_weight (scales_module_t* module, uint8_t sensor_num) {
+  TRACE("scales_module_t_get_weight");
+
+  if (sensor_num > 7) {
+    DEBUG("error: sensor_num is invalid. Returning 0");
+    return 0;
+  }
+  
+  int32_t adc_result = 0;
+  uint8_t channel_num = 0;
+
+  /* Получение номера канала в зависимости от номера датчика */
+
+  switch(sensor_num) {
+    case 5:
+      {
+        channel_num = 6;
+        break;
+      }
+    default:
+      {
+        channel_num = sensor_num;
+        break;
+      }
+  }
+  
+  return adc_read(module, channel_num) / module->adc_to_grams[channel_num];
+}
+
 static void scales_module_t_task(task_t* task) {
   TRACE("scales_module_t_task");
+  scales_module_t* module = (scales_module_t* ) task;
 
   // пока просто выводим данные
   
   for (uint8_t i=0; i<SENSORS_COUNT; i++){
-    //scheduler.delay_ms(&scheduler, task, 50);
-    if (5 == i) {
-      Serial.print(6);
-      Serial.print(": ");
-      Serial.println(adc_read((scales_module_t* ) task, 6));
-    }
-    else {
       Serial.print(i);
       Serial.print(": ");
-      Serial.println(adc_read((scales_module_t* ) task, i));
-    }
-    
+      Serial.println(module->get_weight(module, i) );
   }
   Serial.println("---------------------------------");
-  
-  
-/*
-#define SENS_NUM 3
-#define ITS 50
-scales_module_t* module = (scales_module_t *) task;
-
-  while (1) {
-    // калибровка
-        delay(3000);
-        Serial.print("Калибровка..\n");
-        int64_t cal_samples_sum = 0;
-        module->callibration_koefs[SENS_NUM] = 0;
-        for (uint8_t j=0; j<30; j++) {
-          cal_samples_sum += adc_read(module, SENS_NUM);
-        }
-        cal_samples_sum = cal_samples_sum / 30;
-        module->callibration_koefs[SENS_NUM] = cal_samples_sum;
-
-      Serial.print("Поставить груз\n");
-      delay(3000);
-
-      Serial.print(SENS_NUM);
-      Serial.print(": ");
-      int64_t avg=0;
-      for (uint8_t i=0; i<50; i++) {
-        avg += adc_read((scales_module_t* ) task, SENS_NUM);
-      }
-      avg /=50;
-      Serial.println((int32_t ) avg);
-
-  }
-  */
-  
+   
   return;
 }
 
@@ -173,8 +161,7 @@ void scales_module_t_init(scales_module_t* module) {
   ((module_t* ) module)->_task.func = scales_module_t_task;
   ((module_t* ) module)->module_enter = scales_module_t_module_enter;
   ((module_t* ) module)->module_exit = scales_module_t_module_exit;
-
-
+  module->get_weight = scales_module_t_get_weight;
 
   return;
 }
