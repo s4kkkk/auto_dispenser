@@ -31,13 +31,14 @@ static bool is_available(void* data) {
 
 /* считать данные */
 static int32_t adc_read(scales_module_t* module, uint8_t channel) {
+  
   int32_t count = 0;
 
   digitalWrite(ADC_SCK_PIN, LOW);
 
   /* установка рабочего канала на мультиплексоре */
   mux_setup_channel(channel);
-  scheduler.delay_ms(&scheduler, (task_t* ) module, 350);
+  scheduler.delay_ms(&scheduler, (task_t* ) module, 70);
 
   /* ожидание готовности данных */
   scheduler.wait(&scheduler, (task_t* ) module, is_available, NULL);
@@ -70,10 +71,23 @@ static int32_t adc_read(scales_module_t* module, uint8_t channel) {
 static void adc_calibrate(scales_module_t* module){
   TRACE("adc_calibrate");
 
-  for (uint8_t i=0; i<CHANNEL_COUNT; i++) {
-    module->callibration_koefs[i] = adc_read(module, i);
+  
+  /* Два считывания для улучшения дальнейших показаний */
+  for (uint8_t i=0; i<2; i++) {
+    for (uint8_t j=0; j<CHANNEL_COUNT; j++) {
+      adc_read(module, j);
+    }
   }
-
+  
+  for (uint8_t i=0; i<CHANNEL_COUNT; i++) {
+    int64_t cal_samples_sum = 0;
+    module->callibration_koefs[i] = 0;
+    for (uint8_t j=0; j<5; j++) {
+      cal_samples_sum += adc_read(module, i);
+    }
+    cal_samples_sum = cal_samples_sum / 5;
+    module->callibration_koefs[i] = cal_samples_sum;
+  }
   return;
 }
 
@@ -82,9 +96,9 @@ static void scales_module_t_task(task_t* task) {
   TRACE("scales_module_t_task");
 
   // пока просто выводим данные
+  
   for (uint8_t i=0; i<SENSORS_COUNT; i++){
     //scheduler.delay_ms(&scheduler, task, 50);
-    //i = 0;
     if (5 == i) {
       Serial.print(6);
       Serial.print(": ");
@@ -98,7 +112,40 @@ static void scales_module_t_task(task_t* task) {
     
   }
   Serial.println("---------------------------------");
+  
+  
+/*
+#define SENS_NUM 3
+#define ITS 50
+scales_module_t* module = (scales_module_t *) task;
 
+  while (1) {
+    // калибровка
+        delay(3000);
+        Serial.print("Калибровка..\n");
+        int64_t cal_samples_sum = 0;
+        module->callibration_koefs[SENS_NUM] = 0;
+        for (uint8_t j=0; j<30; j++) {
+          cal_samples_sum += adc_read(module, SENS_NUM);
+        }
+        cal_samples_sum = cal_samples_sum / 30;
+        module->callibration_koefs[SENS_NUM] = cal_samples_sum;
+
+      Serial.print("Поставить груз\n");
+      delay(3000);
+
+      Serial.print(SENS_NUM);
+      Serial.print(": ");
+      int64_t avg=0;
+      for (uint8_t i=0; i<50; i++) {
+        avg += adc_read((scales_module_t* ) task, SENS_NUM);
+      }
+      avg /=50;
+      Serial.println((int32_t ) avg);
+
+  }
+  */
+  
   return;
 }
 
@@ -127,9 +174,7 @@ void scales_module_t_init(scales_module_t* module) {
   ((module_t* ) module)->module_enter = scales_module_t_module_enter;
   ((module_t* ) module)->module_exit = scales_module_t_module_exit;
 
-  for (uint8_t i=0; i<SENSORS_COUNT; i++) {
-    module->callibration_koefs[i] = 0;
-  }
+
 
   return;
 }
