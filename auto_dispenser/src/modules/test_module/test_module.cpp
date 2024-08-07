@@ -90,21 +90,36 @@ static void test_module_t_scales_handler(module_t* module, event_t* pending_even
   return;
 }
 
-bool flag = false;
+uint8_t state = 0;
+
 static void test_module_t_servo_handler (module_t* module, event_t* pending_event) {
   TRACE("test_module_t_servo_handler");
   
   Serial.println("Servo is done!");
 
-  if (!flag) {
-    servo_module.go_to(&servo_module, 4);
-    flag = true;
-  } 
-  else {
-    servo_module.go_to(&servo_module, 0);
-    flag = false;
+  //scheduler.delay_ms(&scheduler, NULL, 500);
+  switch (state) {
+    case 0:
+      state = 1;
+      servo_module.go_to(&servo_module, state);
+      break;
+    case 1:
+      state = 2;
+      servo_module.go_to(&servo_module, state);
+      break;
+    case 2:
+      state = 3;
+      servo_module.go_to(&servo_module, state);
+      break;
+    case 3:
+      state = 4;
+      servo_module.go_to(&servo_module, state);
+      break;
+    case 4:
+      state = 0;
+      servo_module.go_to(&servo_module, state);
+      break;
   }
-
   return;
 }
 

@@ -14,9 +14,9 @@ static void servo_module_t_task(task_t* task) {
 
   servo_module_t* servo_module = (servo_module_t* ) task;
 
-  scheduler.delay_ms(&scheduler, task, 300);
-
   /*
+  scheduler.delay_ms(&scheduler, task, 10);
+
   if (servo_module->servo.tickManual()) {
     // Сервопривод пришел в установленное положение. Удаление задачи, выключение питания сервопривода
     // Генерация события SERVO_DONE
@@ -31,7 +31,9 @@ static void servo_module_t_task(task_t* task) {
     scheduler.emit_event(&scheduler, &new_event);
   }
   */
+  
 
+  scheduler.delay_ms(&scheduler, task, 300);
   scheduler.delete_task(&scheduler, task);
   servo_off();
 
@@ -40,6 +42,7 @@ static void servo_module_t_task(task_t* task) {
     .event_data = NULL
   };
   scheduler.emit_event(&scheduler, &new_event);
+  
 
   return;
 }
@@ -57,7 +60,8 @@ static uint8_t servo_module_t_go_to(servo_module_t* servo_module, uint8_t pos) {
 
   servo_on();
 
-  servo_module->servo.write(servo_module->glass_pos_degs[pos]);
+  // servo_module->servo.setTargetDeg(servo_module->glass_pos_degs[pos]);
+  servo_module->_servo.write(servo_module->glass_pos_degs[pos]);
 
   scheduler.add_task(&scheduler, (task_t* ) servo_module);
   return 0;
@@ -74,9 +78,13 @@ static void servo_module_t_module_enter(module_t* module) {
   pinMode(MX1508_SERVO_PIN2, LOW);
 
   servo_on();
+  /*
   servo_module->servo.attach(SERVO_CTRL_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-  // servo_module->servo.setSpeed(SERVO_SPEED);
-  // servo_module->servo.setAccel(SERVO_ACCELERATION);
+  servo_module->servo.setSpeed(SERVO_SPEED);
+  servo_module->servo.setAccel(SERVO_ACCELERATION);
+  */
+  servo_module->_servo.attach(SERVO_CTRL_PIN);
+
 
   servo_module->go_to(servo_module, SERVO_INIT_POS);
 
@@ -89,7 +97,7 @@ static void servo_module_t_module_exit(module_t* module) {
   servo_module_t* servo_module = (servo_module_t* ) module;
 
   scheduler.delete_task(&scheduler, (task_t *) module);
-  servo_module->servo.detach();
+  servo_module->_servo.detach();
   return;
 }
 

@@ -29,7 +29,7 @@ struct servo_module {
   uint8_t (*go_to) (servo_module_t* servo_module, uint8_t pos);
   
   // ServoSmooth servo;
-  Servo servo;
+  Servo _servo;
 
 };
 
