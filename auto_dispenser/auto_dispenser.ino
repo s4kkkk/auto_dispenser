@@ -22,11 +22,16 @@ void setup() {
   // тестовый модуль
   test_module_t_init(&test_module);
   ((module_t *) &test_module)->module_enter((module_t* ) &test_module);
-  
-  
+
+  /*
   // модуль весов
   scales_module_t_init(&scales_module);
   ((module_t* ) &scales_module)->module_enter( (module_t* ) &scales_module);
+  */
+
+  // модуль сервопривода
+  servo_module_t_init(&servo_module);
+  ((module_t* ) &servo_module)->module_enter( (module_t* ) &servo_module);
 
 }
 

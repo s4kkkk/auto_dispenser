@@ -3,6 +3,7 @@
 
 #include "../../kernel/kernel.h"
 #include "servo_module_settings.h"
+#include <ServoSmooth.h>
 
 /* Модуль сервопривода. Метод позволяет отправить серво на нужную позицию. При успешном повороте 
  * этот модуль генерирует событие SERVO_DONE
@@ -26,7 +27,12 @@ struct servo_module {
    * 1 - критическая ошибка
    */
   uint8_t (*go_to) (servo_module_t* servo_module, uint8_t pos);
+  
+  // ServoSmooth servo;
+  Servo servo;
 
 };
+
+void servo_module_t_init(servo_module_t* module);
 
 #endif // SERVO_MODULE_H

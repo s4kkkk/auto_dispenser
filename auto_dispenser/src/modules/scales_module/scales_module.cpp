@@ -196,6 +196,8 @@ static void scales_module_t_task(task_t* task) {
 }
 
 static void scales_module_t_module_enter(module_t* module) {
+  TRACE("scales_module_t_module_enter");
+
   pinMode(MUX_S0_PIN, OUTPUT);
   pinMode(MUX_S1_PIN, OUTPUT);
   pinMode(MUX_S2_PIN, OUTPUT);
@@ -215,6 +217,7 @@ static void scales_module_t_module_exit(module_t* module) {
 }
 
 void scales_module_t_init(scales_module_t* module) {
+  TRACE("scales_module_t_init");
 
   ((module_t* ) module)->_task.func = scales_module_t_task;
   ((module_t* ) module)->module_enter = scales_module_t_module_enter;

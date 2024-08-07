@@ -90,6 +90,24 @@ static void test_module_t_scales_handler(module_t* module, event_t* pending_even
   return;
 }
 
+bool flag = false;
+static void test_module_t_servo_handler (module_t* module, event_t* pending_event) {
+  TRACE("test_module_t_servo_handler");
+  
+  Serial.println("Servo is done!");
+
+  if (!flag) {
+    servo_module.go_to(&servo_module, 4);
+    flag = true;
+  } 
+  else {
+    servo_module.go_to(&servo_module, 0);
+    flag = false;
+  }
+
+  return;
+}
+
 
 static void test_module_t_module_enter(module_t* module) {
   TRACE("test_module_t_module_enter");
@@ -101,6 +119,7 @@ static void test_module_t_module_enter(module_t* module) {
   scheduler.register_event(&scheduler, ENCODER_RELEASED, &test_module_t_handler, (module_t*) module);
   scheduler.register_event(&scheduler, BUTTON_PRESSED, &test_module_t_button_handler, (module_t* ) module);
   scheduler.register_event(&scheduler, GLASS_AVAILABLE_CHANGE, &test_module_t_scales_handler, (module_t* ) module);
+  scheduler.register_event(&scheduler, SERVO_DONE, &test_module_t_servo_handler, (module_t* ) module);
 
   return;
 }
@@ -117,6 +136,7 @@ void test_module_t_init(test_module_t* module) {
   ((module_t *) module)->module_exit = test_module_t_module_exit;
   module->handler1 = test_module_t_handler;
   module->button_handler = test_module_t_button_handler;
+  module->servo_handler = test_module_t_servo_handler;
 
   module->last_glass_states = 0;
 }
