@@ -100,7 +100,7 @@ static void test_module_t_servo_handler (module_t* module, event_t* pending_even
   scheduler.delay_ms(&scheduler, NULL, 500);
   switch (state) {
     case 0:
-      state = 4;
+      state = 1;
       servo_module.go_to(&servo_module, state);
       break;
     case 1:

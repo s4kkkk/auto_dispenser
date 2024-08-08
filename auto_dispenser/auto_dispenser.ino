@@ -7,7 +7,7 @@
 void setup() {
 
   Serial.begin(9600);
-
+  
   scheduler_t_init(&scheduler);
    
   /* подключение модуля энкодера

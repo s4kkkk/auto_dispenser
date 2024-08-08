@@ -15,11 +15,11 @@ struct servo_module {
 
   /* углы направления на рюмки */
   const int glass_pos_degs[POSITIONS_NUM] = {
-    36, // 0
-    72, // 1
+    180, // 0
+    144, // 1
     108, // 2
-    144, // 3
-    180 // 4
+    72, // 3
+    0 // 4
   };
 
   /* для перемещения. Возвращает
@@ -42,14 +42,20 @@ struct servo_module {
   /* Размер шага в мкс импульса ШИМа */
   int32_t _step_size;
 
-  /* Флаг обработки мертвой зоны */
-  bool _dead_zone_process;
+  /* Суммарное кол-во шагов */
+  int32_t _steps_count;
 
-  /* Позиция конца мертвой зоны */
-  int32_t _dead_zone_end;
+  /* Кол-во пройденных шагов */
+  int32_t _steps_completed;
+  
+  /* Текущее расстояние */
+  int32_t _distance;
+  
+  /* Флаг отрицательного расстояния */
 
-  /* Размер шага в мертвой зоне */
-  int32_t _dead_zone_step;
+  bool _negative_distance;
+
+
 
 };
 

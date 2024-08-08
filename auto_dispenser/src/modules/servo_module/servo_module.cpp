@@ -10,6 +10,19 @@
 #define servo_off() \
   digitalWrite(MX1508_SERVO_PIN1, LOW)
 
+static float tr (float x) {
+
+  if ( (x>=0) && (x<0.5) ) {
+    return x;
+  }
+  else if ( (x>=0.5) && (x<=1) ) {
+    return 1 - x;
+  }
+  else {
+    return 0;
+  }
+}
+
 static void servo_module_t_task(task_t* task) {
   TRACE("servo_module_t_task");
 
@@ -18,20 +31,15 @@ static void servo_module_t_task(task_t* task) {
   /* Ждем POLLING_RATE мкс*/
   scheduler.delay_us(&scheduler, task, SERVO_POLLING_RATE);
 
+  /* Проверка на достижение цели */
 
-  /* Вычисление оставшегося расстояния */
-
-  int32_t delta = servo_module->_target_position - servo_module->_current_position;
-  if (delta < 0) {delta = -delta;}
-
-  int32_t step_size_abs = servo_module->_step_size;
-  if (step_size_abs < 0) {step_size_abs = -step_size_abs;}
-
-  /* Проверка на достижение */
-
-  if ( delta <= step_size_abs ) {
+  if ( servo_module->_steps_completed >= servo_module->_steps_count ) {
 
     /* Привод дошел до нужной позиции */
+    servo_module->_servo.writeMicroseconds(servo_module->_target_position);
+    servo_module->_current_position = servo_module->_target_position;
+    scheduler.delay_us(&scheduler, task, SERVO_POLLING_RATE);
+
     scheduler.delete_task(&scheduler, task);
 
     servo_off();
@@ -42,43 +50,21 @@ static void servo_module_t_task(task_t* task) {
     };
 
     scheduler.emit_event(&scheduler, &new_event);
-  }
-  
-  else {
-
-    /* Выполенение шага*/
-
-    /* Обработка мертвой зоны */
-    if (servo_module->_dead_zone_process) {
-
-      /* Проверка на окончание обработки мертвой зоны */
-      int32_t dead_zone_dist = servo_module->_dead_zone_end - servo_module->_current_position;
-      if (dead_zone_dist < 0) {dead_zone_dist = -dead_zone_dist;}
-
-      if (dead_zone_dist <= DEAD_ZONE_STEP_SIZE) {
-        /* Мертвая зона пройдена */
-        servo_module->_dead_zone_process = false;
-        DEBUG("Dead zone passed");
-      }
-      else {
-        /* Шаг в мертвой зоне */
-        DEBUG("Step in deadzone");
-        servo_module->_current_position += servo_module->_dead_zone_step;
-        servo_module->_servo.writeMicroseconds(servo_module->_current_position);
-      }
-
-    }
-
-    else {
-      DEBUG("STEP.. Size is: ");
-      DEBUG(servo_module->_step_size);
-      servo_module->_current_position += servo_module->_step_size;
-      servo_module->_servo.writeMicroseconds(servo_module->_current_position);
-    }
-
-
+    return;
   }
 
+  /* Вычисление текущего размера шага */
+
+  servo_module->_steps_completed++;
+
+  float step_size = (((float) 4*servo_module->_distance)/(servo_module->_steps_count*SERVO_POLLING_RATE)) * tr( ((float) servo_module->_steps_completed) / (servo_module->_steps_count))*SERVO_POLLING_RATE;
+
+  if (servo_module->_negative_distance) {step_size = -step_size;}
+
+  /* Выполнение шага */
+  servo_module->_current_position += step_size;
+
+  servo_module->_servo.writeMicroseconds(servo_module->_current_position);
   return;
 }
 
@@ -108,46 +94,15 @@ static uint8_t servo_module_t_go_to(servo_module_t* servo_module, uint8_t pos) {
 
   servo_module->_target_position = target_pos;
   
-  bool turn_left = (target_pos < servo_module->_current_position)? true: false;
+  servo_module->_negative_distance = (target_pos < servo_module->_current_position)? true: false;
 
-  /* Расчет мертвой зоны */
-  int32_t dead_zone_end;
-
-  if (turn_left) {
-    dead_zone_end = servo_module->_current_position - DEAD_ZONE;
-  } else {
-    dead_zone_end = servo_module->_current_position + DEAD_ZONE;
-  }
-
-  /* Расчёт размера шага */
-
-  if ( ( (dead_zone_end < servo_module->_target_position) && !turn_left ) || 
-       ( (dead_zone_end > servo_module->_target_position) && turn_left )
-      ) {
-
-    /* Расчет размера шага */
-    int32_t step_size = (servo_module->_target_position - dead_zone_end) / SERVO_MOVE_STEPS;
+  int32_t distance = (servo_module->_negative_distance) ? -(target_pos - servo_module->_current_position) : (target_pos - servo_module->_current_position);
   
-    servo_module->_step_size = step_size;
-    servo_module->_dead_zone_process = true;
-    servo_module->_dead_zone_end = dead_zone_end;
-    if (turn_left) {
-      servo_module->_dead_zone_step = -DEAD_ZONE_STEP_SIZE;
-    } 
-    else {
-      servo_module->_dead_zone_step = DEAD_ZONE_STEP_SIZE;
-    }
+  servo_module->_distance = distance;
 
-  }
-  else {
+  servo_module->_steps_count = (2*sqrt(distance / ( SERVO_ACCELERATION * SERVO_ACCELERATION ) ) / SERVO_POLLING_RATE);
 
-    /* Расчет размера шага */
-    int32_t step_size = (servo_module->_target_position - servo_module->_current_position) / SERVO_MOVE_STEPS;
-  
-    servo_module->_step_size = step_size;
-    servo_module->_dead_zone_process = false;
-
-  }
+  servo_module->_steps_completed = 0;
 
   /* Добавление задачи в очередь */
   scheduler.add_task(&scheduler, (task_t* ) servo_module);
