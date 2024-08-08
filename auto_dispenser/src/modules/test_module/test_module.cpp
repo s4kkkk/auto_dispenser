@@ -97,10 +97,10 @@ static void test_module_t_servo_handler (module_t* module, event_t* pending_even
   
   Serial.println("Servo is done!");
 
-  //scheduler.delay_ms(&scheduler, NULL, 500);
+  scheduler.delay_ms(&scheduler, NULL, 500);
   switch (state) {
     case 0:
-      state = 1;
+      state = 4;
       servo_module.go_to(&servo_module, state);
       break;
     case 1:

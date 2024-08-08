@@ -3,7 +3,7 @@
 
 #include "../../kernel/kernel.h"
 #include "servo_module_settings.h"
-#include <ServoSmooth.h>
+#include <Servo.h>
 
 /* Модуль сервопривода. Метод позволяет отправить серво на нужную позицию. При успешном повороте 
  * этот модуль генерирует событие SERVO_DONE
@@ -27,9 +27,29 @@ struct servo_module {
    * 1 - критическая ошибка
    */
   uint8_t (*go_to) (servo_module_t* servo_module, uint8_t pos);
-  
-  // ServoSmooth servo;
+
+
+  /* ПРИВАТНЫЕ ПОЛЯ */
+
   Servo _servo;
+
+  /* Текущая позиция сервопривода в мкс импульса ШИМа */
+  int32_t _current_position;
+
+  /* Целевая позиция сервопривода в мкс импульса ШИМа */
+  int32_t _target_position;
+
+  /* Размер шага в мкс импульса ШИМа */
+  int32_t _step_size;
+
+  /* Флаг обработки мертвой зоны */
+  bool _dead_zone_process;
+
+  /* Позиция конца мертвой зоны */
+  int32_t _dead_zone_end;
+
+  /* Размер шага в мертвой зоне */
+  int32_t _dead_zone_step;
 
 };
 
