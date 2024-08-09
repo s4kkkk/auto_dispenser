@@ -11,7 +11,7 @@ struct pump_module {
   module_t _module;
 
   /* Метод для запуска наливания жидкости */
-  int8_t (*pour) (pump_module_t* pump_module);
+  int8_t (*pour) (pump_module_t* pump_module, uint8_t position);
 
   /* Метод для установки массы наливаемой жидкости */
   int8_t (*set_liquid_mass) (pump_module_t* pump_module, int32_t mass);
@@ -30,6 +30,9 @@ struct pump_module {
 
   /* Целевая масса рюмки */
   int32_t _target_weight;
+
+  /* Для оценки прогресса */
+  uint8_t _progress;
 
 };
 

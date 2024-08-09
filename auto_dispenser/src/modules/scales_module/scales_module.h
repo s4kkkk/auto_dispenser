@@ -16,7 +16,7 @@ typedef struct scales_module scales_module_t;
 struct scales_module {
   module_t _module;
   
-  /* функция для получения веса по номеру датчика */
+  /* функция для получения веса по номеру датчика. При ошибке возвращает ERROR_WEIGHT */
   int32_t (*get_weight) (scales_module_t* module, uint8_t sensor_num);
 
   /* функция тарирования. 

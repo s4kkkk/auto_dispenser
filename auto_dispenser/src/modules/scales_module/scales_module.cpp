@@ -132,8 +132,8 @@ static int32_t scales_module_t_get_weight (scales_module_t* module, uint8_t sens
   TRACE("scales_module_t_get_weight");
 
   if (sensor_num > 7) {
-    DEBUG("error: sensor_num is invalid. Returning 0");
-    return 0;
+    DEBUG("error: sensor_num is invalid.");
+    return ERROR_WEIGHT;
   }
   
   uint8_t channel_num = 0;

@@ -22,4 +22,6 @@
 /* ширина петли гистерезиса в граммах для детектирования наличия рюмки */
 #define HYSTERESIS_WIDTH 3
 
+#define ERROR_WEIGHT 50000
+
 #endif // SCALES_MODULE_SETTING_H

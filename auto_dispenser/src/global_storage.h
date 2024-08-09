@@ -19,6 +19,9 @@ extern scales_module_t scales_module;
 #include "modules/servo_module/servo_module.h"
 extern servo_module_t servo_module;
 
+#include "modules/pump_module/pump_module.h"
+extern pump_module_t pump_module;
+
 extern scheduler_t scheduler;
 
 #endif // GLOBAL_STORAGE_H
