@@ -1,0 +1,9 @@
+#ifndef PUMP_MODULE_SETTINGS_H
+#define PUMP_MODULE_SETTINGS_H
+
+/* Пины драйвера MX1508 */
+
+#define MX1508_PUMP_PIN1 7
+#define MX1508_PUMP_PIN2 8
+
+#endif // PUMP_MODULE_SETTINGS_H
